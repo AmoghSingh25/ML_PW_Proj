@@ -9,10 +9,10 @@ import time
 from tqdm.notebook import tqdm
 
 class simulation:
-    def __init__(self,wave_freq, wave_speed, wave_decay, wave_cutoff, wave_retreat_coeff, wave_height, sand_pull, ground_pull, water_decay, wave_vol, wave_amplitude, wave_spread):
-        self.GROUND_COLOR = [29,118,56]
-        self.SAND_COLOR = [153,229, 255]
-        self.WATER_COLOR = [204,134,41]
+    def __init__(self, wave_freq, wave_speed, wave_decay, wave_cutoff, wave_retreat_coeff, wave_height, sand_pull, ground_pull, water_decay, wave_vol, wave_amplitude, wave_spread, obstacle_coords=[], dim_map=100):
+        self.GROUND_COLOR = [56,118,29]
+        self.SAND_COLOR = [255,229, 153]
+        self.WATER_COLOR = [41,134,204]
 
         self.FRAC_GROUND, self.FRAC_SAND = 0.3, 0.3
         
@@ -25,17 +25,17 @@ class simulation:
         self.WAVE_VOL = wave_vol
         self.WAVE_AMPLITUDE = wave_amplitude
         self.WAVE_SPREAD = wave_spread
-        
+
+        self.obstacle_coords = obstacle_coords
+        self.obstacle_map = np.zeros((dim_map,dim_map))
+        self.place_obstacles()
 
         self.SAND_PULL = sand_pull
         self.GROUND_PULL = ground_pull
         self.WATER_DECAY = water_decay
 
 
-        self.DIM_MAP = 100
-        self.GROUND_COLOR.reverse()
-        self.SAND_COLOR.reverse()
-        self.WATER_COLOR.reverse()
+        self.DIM_MAP = dim_map
     
     def get_coast_coords(self, coast_map, check_water = False, limit=0):
         coast_coords = []
@@ -89,31 +89,36 @@ class simulation:
         wave = self.DIM_MAP - wave
         wave = self.calculate_wave_pos(wave)
         return wave
+    
+    def place_obstacles(self):
+        for i in self.obstacle_coords:
+            self.obstacle_map[i[0],i[1]] = 1
 
     def display_map(self, coast, waves_inp=[], stream=True, openCV=False):
         cv.namedWindow("Coast")
         
         img = np.zeros((coast.shape[0], coast.shape[1],3), dtype=int)
         coast_temp = copy.deepcopy(coast)
-        coast_temp[:,:,0] = (coast_temp[:,:,0] / np.max(coast_temp[:,:,0])) * 255
-        coast_temp[:,:,1] = (coast_temp[:,:,1] / np.max(coast_temp[:,:,1])) * 255
-        coast_temp[:,:,2] = (coast_temp[:,:,2] / np.max(coast_temp[:,:,2])) * 255
+        coast_temp[:,:,0] = (coast_temp[:,:,0] / np.max(coast_temp[:,:,0]))
+        coast_temp[:,:,1] = (coast_temp[:,:,1] / np.max(coast_temp[:,:,1]))
+        coast_temp[:,:,2] = (coast_temp[:,:,2] / np.max(coast_temp[:,:,2]))
         coast_temp = coast_temp[...,np.newaxis]
         img = np.array(self.GROUND_COLOR).reshape(1,1,-1)*coast_temp[:,:,0,:]   ## Ground Color
         img+= np.array(self.SAND_COLOR).reshape(1,1,-1)*coast_temp[:,:,1,:]   ## Sand Color
         img+= np.array(self.WATER_COLOR).reshape(1,1,-1)*coast_temp[:,:,2,:]   ## Water Color
             
-        if len(waves_inp) > 0:
-            for i in range(len(waves_inp)):
-                for j in range(len(waves_inp[i])):
-                    img[j,int(waves_inp[i,j])] = [0,0,255]
-                # img[i,waves_inp[:,i]] = [0,0,255]
 
+        for i in range(len(waves_inp)):
+            for j in range(len(waves_inp[i])):
+                img[j,int(waves_inp[i,j])] = [0,0,255]
+                # img[i,waves_inp[:,i]] = [0,0,255]]
+        
+        for i in range(len(self.obstacle_coords)):
+            img[self.obstacle_coords[i][0],self.obstacle_coords[i][1]] = [255,0,0]
+        
         if not openCV:
             plt.imshow(img)
-
-
-        if openCV:
+        elif openCV:
             img = img.astype(np.uint8)
             img_cv = cv.cvtColor(img, cv.COLOR_RGB2BGR)
             img_cv = cv.resize(img_cv, (1000,1000))
@@ -151,7 +156,7 @@ class simulation:
 
     def move_sand(self, coast_inp, waves, wave_speeds, wave_vol):     
         global WAVE_DECAY, SAND_PULL, GROUND_PULL, WAVE_CUTOFF, WAVE_RETREAT_COEFF, WAVE_SPREAD, WATER_DECAY, WAVE_SPEED, WAVE_VOL
-        # waves = calculate_wave_pos(waves)
+
         waves = waves.astype(int)
         for wave_idx in range(len(waves)):
             for i in range(len(waves[0])):
@@ -168,6 +173,9 @@ class simulation:
                     if left_pix[0] == 0 and left_pix[1] == 0:
                         continue
                     
+                    if self.obstacle_map[vert_idx, hor_idx-1] == 1:
+                        wave_speeds[wave_idx][i] = 0
+                        continue
                     
                     energy = wave_speeds[wave_idx][i] * wave_vol[wave_idx][i]
                     
@@ -207,6 +215,7 @@ class simulation:
         return coast_inp, wave_speeds
     
     def run_sim(self, num_timesteps, plots=False):
+
         coast_map = np.zeros((self.DIM_MAP, self.DIM_MAP,3), dtype=np.int16)
         coast_map[:,:int(self.DIM_MAP*self.FRAC_GROUND),0] = 100  ## Assign sand portion of the map
         coast_map[:,int(self.DIM_MAP*self.FRAC_GROUND):int(self.DIM_MAP*(self.FRAC_GROUND+self.FRAC_SAND)),1] = 100  ## Assign sand portion of the map
@@ -227,7 +236,7 @@ class simulation:
                 wave_vol = np.append(wave_vol, np.array([self.WAVE_VOL * np.ones(waves[0].shape)]), axis=0)
 
                 if plots:
-                    display_map(temp_coast_map, waves)
+                    self.display_map(temp_coast_map, waves)
                     plt.title("Time step = "+str(t))
                     plt.show()
             temp_coast_map, wave_speeds = self.move_sand(copy.deepcopy(temp_coast_map), waves, wave_speeds, wave_vol)
@@ -244,6 +253,5 @@ class simulation:
         sand_layer = temp_coast_map[:, :, 1]  # Extract sand layer
         total_sand = np.sum(sand_layer)  # Sum of all sand cells
         print(f"Total sand: {total_sand}")
-        # return temp_coast_map, total_sand
 
         return self.get_coast(coast_map), temp_coast_map, total_sand

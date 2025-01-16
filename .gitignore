@@ -164,3 +164,5 @@ cython_debug/
 #.idea/
 
 TODO.txt
+
+temp.ipynb
