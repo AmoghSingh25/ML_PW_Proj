@@ -30,5 +30,8 @@ PARAM_RANGES = {
     "wave_height": (1, 5),
     "sand_pull": (0.1, 0.5),
     "ground_pull": (0.05, 0.2),
-    "water_decay": (0.95, 1.0)
+    "water_decay": (0.95, 1.0),
+    "wave_vol": (1, 5),
+    "wave_amplitude": (1, 5),
+    "wave_spread": (0, 5)
 }

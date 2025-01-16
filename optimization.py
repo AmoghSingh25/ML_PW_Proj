@@ -2,16 +2,17 @@ from emukit.core import ParameterSpace, ContinuousParameter
 from emukit.sensitivity.monte_carlo import MonteCarloSensitivity
 from emukit.bayesian_optimization.loops import BayesianOptimizationLoop
 from config import PARAM_RANGES
-from coastal_simulation import CoastalSimulation
+# from coastal_simulation import CoastalSimulation
+from simulation import simulation
 import numpy as np
 import GPy
 from emukit.model_wrappers import GPyModelWrapper
 
 class OptimizationManager:
     def __init__(self):
-        self.simulation = CoastalSimulation()
+        # self.simulation = CoastalSimulation()
         self.parameter_space = ParameterSpace([
-            ContinuousParameter(key, *PARAM_RANGES[key]) 
+            ContinuousParameter(key, *PARAM_RANGES[key])
             for key in PARAM_RANGES
         ])
 
@@ -29,10 +30,9 @@ class OptimizationManager:
         
         for x in X:
             wave_freq, wave_speed, wave_decay, wave_cutoff, wave_retreat_coeff, \
-            wave_height, sand_pull, ground_pull, water_decay = x
+            wave_height, sand_pull, ground_pull, water_decay, wave_vol,wave_amplitude, wave_spread  = x
 
-            _, total_sand = self.simulation.run_sim(
-                num_timesteps=100,
+            sim = simulation(
                 wave_freq=wave_freq,
                 wave_speed=wave_speed,
                 wave_decay=wave_decay,
@@ -42,8 +42,11 @@ class OptimizationManager:
                 sand_pull=sand_pull,
                 ground_pull=ground_pull,
                 water_decay=water_decay,
-                plots=False
+                wave_vol=wave_vol,
+                wave_amplitude=wave_amplitude,
+                wave_spread=wave_spread
             )
+            _,_,total_sand = sim.run_sim(num_timesteps=100)
             results.append([-total_sand])  # Wrap in a list to make it 2D
 
         return np.array(results)
