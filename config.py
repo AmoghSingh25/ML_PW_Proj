@@ -5,11 +5,11 @@ FRAC_GROUND, FRAC_SAND = 0.3, 0.3
 DIM_MAP = 100
 
 WAVE_FREQ = 20
-WAVE_SPEED = 1
+WAVE_SPEED = 5.344
 WAVE_DECAY = 0.6
 WAVE_CUTOFF = 0.1
 WAVE_RETREAT_COEFF = 0.8
-WAVE_HEIGHT = 2
+WAVE_HEIGHT = 0.572
 
 SAND_PULL = 0.2
 GROUND_PULL = 0.1
@@ -20,7 +20,7 @@ GROUND_COLOR.reverse()
 SAND_COLOR.reverse()
 WATER_COLOR.reverse()
 
-# Parameter ranges for optimization
+# Parameter ranges for optimization - to be changed for barrier only params
 PARAM_RANGES = {
     "wave_freq": (10, 50),
     "wave_speed": (0.5, 2.0),
