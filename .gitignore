@@ -166,3 +166,7 @@ cython_debug/
 TODO.txt
 
 temp.ipynb
+
+.DS_Store
+
+Archive/

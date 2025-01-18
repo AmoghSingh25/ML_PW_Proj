@@ -46,7 +46,7 @@ class OptimizationManager:
                 wave_amplitude=wave_amplitude,
                 wave_spread=wave_spread
             )
-            _,_,total_sand = sim.run_sim(num_timesteps=100)
+            _,_,initial_sand, total_sand = sim.run_sim(num_timesteps=100)
             results.append([-total_sand])  # Wrap in a list to make it 2D
 
         return np.array(results)
