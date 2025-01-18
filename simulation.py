@@ -26,6 +26,13 @@ class simulation:
         self.WAVE_AMPLITUDE = wave_amplitude
         self.WAVE_SPREAD = wave_spread
 
+        self.waves = []
+        self.wave_speeds = []
+        self.wave_dirs = []
+        self.wave_vol = []
+
+        self.WIND_DIR = 0 # Angle relative to shore, 0 - perpendicular to shore, 90 - parallel to shore, +ve Moving above, -ve Moving below
+
         self.obstacle_coords = obstacle_coords
         self.obstacle_map = np.zeros((dim_map,dim_map))
         self.place_obstacles()
@@ -94,7 +101,7 @@ class simulation:
         for i in self.obstacle_coords:
             self.obstacle_map[i[0],i[1]] = 1
 
-    def display_map(self, coast, waves_inp=[], stream=True, openCV=False):
+    def display_map(self, coast, stream=True, openCV=False):
         cv.namedWindow("Coast")
         
         img = np.zeros((coast.shape[0], coast.shape[1],3), dtype=int)
@@ -106,11 +113,10 @@ class simulation:
         img = np.array(self.GROUND_COLOR).reshape(1,1,-1)*coast_temp[:,:,0,:]   ## Ground Color
         img+= np.array(self.SAND_COLOR).reshape(1,1,-1)*coast_temp[:,:,1,:]   ## Sand Color
         img+= np.array(self.WATER_COLOR).reshape(1,1,-1)*coast_temp[:,:,2,:]   ## Water Color
-            
 
-        for i in range(len(waves_inp)):
-            for j in range(len(waves_inp[i])):
-                img[j,int(waves_inp[i,j])] = [0,0,255]
+        for i in range(len(self.waves)):
+            for j in range(len(self.waves[i])):
+                img[j,int(self.waves[i,j])] = [0,0,255]
                 # img[i,waves_inp[:,i]] = [0,0,255]]
         
         for i in range(len(self.obstacle_coords)):
@@ -130,8 +136,7 @@ class simulation:
                 cv.waitKey(0)
                 cv.destroyWindow("Coast")
                 cv.waitKey(1)
-    
-        
+            
     def get_coast(self, coast_inp):
         temp_coast = copy.deepcopy(coast_inp)
 
@@ -154,65 +159,85 @@ class simulation:
     def get_wave_energy(self, wave_height):
         return (1.225 * 9.8 * wave_height**2 * self.WAVE_AMPLITUDE) / 8
 
-    def move_sand(self, coast_inp, waves, wave_speeds, wave_vol):     
+    def move_sand(self, coast_inp):     
         global WAVE_DECAY, SAND_PULL, GROUND_PULL, WAVE_CUTOFF, WAVE_RETREAT_COEFF, WAVE_SPREAD, WATER_DECAY, WAVE_SPEED, WAVE_VOL
 
-        waves = waves.astype(int)
-        for wave_idx in range(len(waves)):
-            for i in range(len(waves[0])):
+        self.waves = self.waves.astype(int)
+        for wave_idx in range(len(self.waves)):
+            for i in range(len(self.waves[0])):
                 vert_idx = i 
-                hor_idx = waves[wave_idx][i]
+                hor_idx = self.waves[wave_idx][i]
                 curr_pix = copy.deepcopy(coast_inp[vert_idx, hor_idx])
-                if wave_speeds[wave_idx][i] < self.WAVE_CUTOFF:
-                    wave_speeds[wave_idx][i] = 0
+                
+                if self.wave_speeds[wave_idx][i] < self.WAVE_CUTOFF:
+                    self.wave_dirs[wave_idx][i] = -1
+                    self.wave_speeds[wave_idx][i] = self.WAVE_VOL * self.WAVE_RETREAT_COEFF
                     continue
-                if wave_speeds[wave_idx][i] > self.WAVE_CUTOFF:
+
+                if self.wave_speeds[wave_idx][i] > self.WAVE_CUTOFF and self.wave_dirs[wave_idx][i] == 1:
                     left_pix = copy.deepcopy(coast_inp[vert_idx,hor_idx-1])
                     new_curr_pix = copy.deepcopy(curr_pix)
                     
                     if left_pix[0] == 0 and left_pix[1] == 0:
                         continue
                     
-                    if self.obstacle_map[vert_idx, hor_idx-1] == 1:
-                        wave_speeds[wave_idx][i] = 0
+                    if self.obstacle_map[vert_idx, hor_idx] == 1:
+                        self.wave_dirs[wave_idx][i] = 0
+                        self.wave_speeds[wave_idx][i] = self.WAVE_VOL * self.WAVE_RETREAT_COEFF
                         continue
                     
-                    energy = wave_speeds[wave_idx][i] * wave_vol[wave_idx][i]
+                    energy = self.wave_speeds[wave_idx][i] * self.wave_vol[wave_idx][i]
                     
                     
                     new_curr_pix[0] = max(curr_pix[0] - self.GROUND_PULL * curr_pix[0] * energy, 0)
                     new_curr_pix[1] = max(curr_pix[1] - self.SAND_PULL * curr_pix[1] * energy, 0)
                     
-                    left_pix[0] = min(left_pix[0] + self.GROUND_PULL * curr_pix[0] * energy, 0)
-                    left_pix[1] = min(left_pix[1] + self.SAND_PULL * curr_pix[1] * energy, 0)
+                    left_pix[0] = left_pix[0] + self.GROUND_PULL * curr_pix[0] * energy
+                    left_pix[1] = left_pix[1] + self.SAND_PULL * curr_pix[1] * energy
                     
                     coast_inp[vert_idx, hor_idx] = new_curr_pix
                     coast_inp[vert_idx, hor_idx-1] = left_pix
-                    wave_speeds[wave_idx][i] *= self.WAVE_DECAY
 
-                
-                elif wave_speeds[wave_idx][i] < 0:
-                    wave_speeds[wave_idx][i]=0
-                    continue
+                    self.wave_speeds[wave_idx][i] *= self.WAVE_DECAY
+                    self.wave_vol[wave_idx][i] *= self.WAVE_DECAY
+
+                    if i-1 > 0 and self.wave_dirs[wave_idx][i-1] == 0 and self.wave_speeds[wave_idx][i-1] > 0 and self.obstacle_map[vert_idx-1, hor_idx]!=0:
+                        # print("REVIVE DEAD WAVE - 1")
+                        self.wave_vol[wave_idx][i-1] = self.WAVE_SPREAD * self.wave_vol[wave_idx][i]
+                        self.wave_dirs[wave_idx][i-1] = 1
+                        self.wave_speeds[wave_idx][i-1] = (1 - self.WAVE_DECAY) * self.wave_speeds[wave_idx][i]
+                        
                     
-                    if curr_pix[0] == 0 and curr_pix[1] == 0 and curr_pix[2] > 1:
-                        wave_speeds[wave_idx][i] == 0
+                    if i+1 < self.DIM_MAP and self.wave_dirs[wave_idx][i+1] == 0 and self.wave_speeds[wave_idx][i+1] > 0 and self.obstacle_map[vert_idx+1, hor_idx]!=0:
+                        # print("REVIVE DEAD WAVE - 2")
+                        self.wave_vol[wave_idx][i+1] = self.WAVE_SPREAD * self.wave_vol[wave_idx][i]
+                        self.wave_dirs[wave_idx][i+1] = 1
+                        self.wave_speeds[wave_idx][i+1] = (1 - self.WAVE_DECAY) * self.wave_speeds[wave_idx][i]
+                    
+                elif self.wave_dirs[wave_idx][i] < 0:
+                    
+                    if curr_pix[0] == 0 and curr_pix[1] == 0 and curr_pix[2] > 1 or self.wave_speeds[wave_idx][i] < self.WAVE_CUTOFF:
+                        self.wave_speeds[wave_idx][i] == 0
+                        self.wave_dirs[wave_idx][i] = 0
                         continue
+                        
+
                     right_pix = coast_inp[vert_idx, hor_idx+1]
+                    energy = self.wave_speeds[wave_idx][i] * self.WAVE_RETREAT_COEFF
                     
                     new_curr_pix = copy.deepcopy(curr_pix)
-                    new_curr_pix[0] = curr_pix[0] - self.WAVE_RETREAT_COEFF * curr_pix[0]*self.GROUND_PULL*wave_speeds[wave_idx][i]
-                    new_curr_pix[1] = curr_pix[1] - self.WAVE_RETREAT_COEFF * curr_pix[1]*self.SAND_PULL*wave_speeds[wave_idx][i]
-                    
-                    right_pix[0] = right_pix[0] + self.WAVE_RETREAT_COEFF * curr_pix[0]*self.GROUND_PULL*wave_speeds[wave_idx][i]
-                    right_pix[1] = right_pix[1] + self.WAVE_RETREAT_COEFF * curr_pix[1]*self.SAND_PULL*wave_speeds[wave_idx][i]
-                    
+                    new_curr_pix[0] = max(curr_pix[0] - self.GROUND_PULL * curr_pix[0] * energy, 0)
+                    new_curr_pix[1] = max(curr_pix[1] - self.GROUND_PULL * curr_pix[1] * energy, 0)
+
+                    right_pix[0] = right_pix[0] + curr_pix[0]*self.GROUND_PULL*energy
+                    right_pix[1] = right_pix[1] + curr_pix[1]*self.GROUND_PULL*energy
                     
                     coast_inp[vert_idx, hor_idx] = new_curr_pix
                     coast_inp[vert_idx, hor_idx+1] = right_pix
-                    
-                    wave_speeds[wave_idx][i] *= self.WAVE_DECAY
-        return coast_inp, wave_speeds
+
+                    self.wave_speeds[wave_idx][i] *= self.WAVE_DECAY
+
+        return coast_inp
     
     def run_sim(self, num_timesteps, plots=False):
 
@@ -223,35 +248,40 @@ class simulation:
         self.rand_coast = self.get_coast_noise(scaling_factor=self.DIM_MAP / 20, period=0.5, noise_level=1 / self.DIM_MAP)
         self.rand_terrain = self.get_coast_noise(scaling_factor=self.DIM_MAP/20, period=0.5, noise_level=1 / self.DIM_MAP)
         temp_coast_map = self.get_coast(coast_map)
-        waves = np.array([self.get_wave(scaling_factor=3, period=self.WAVE_AMPLITUDE, noise_level=1/self.DIM_MAP).astype(np.int16)])
-        wave_speeds = np.array([np.ones(waves[0].shape) * self.WAVE_SPEED])
-        wave_vol = np.array([self.WAVE_VOL * np.ones(waves[0].shape)])
+        self.waves = np.array([self.get_wave(scaling_factor=3, period=self.WAVE_AMPLITUDE, noise_level=1/self.DIM_MAP).astype(np.int16)])
+        self.wave_speeds = np.array([np.ones(self.waves[0].shape) * self.WAVE_SPEED])
+        self.wave_dirs = np.array([np.ones(self.waves[0].shape)])
+        self.wave_vol = np.array([self.WAVE_VOL * np.ones(self.waves[0].shape)])
 
         
         for t in tqdm(range(1,num_timesteps)):
             if t%self.WAVE_FREQ == 0 and (num_timesteps - t) > 10 :
                 new_wave = self.get_wave(scaling_factor=10, period=self.WAVE_AMPLITUDE, noise_level=1/self.DIM_MAP).astype(np.int16).reshape(1,-1)
-                waves = np.append(waves, new_wave, axis=0)
-                wave_speeds = np.append(wave_speeds, np.array([np.ones(waves[0].shape) * self.WAVE_SPEED]), axis=0)
-                wave_vol = np.append(wave_vol, np.array([self.WAVE_VOL * np.ones(waves[0].shape)]), axis=0)
+                self.waves = np.append(self.waves, new_wave, axis=0)
+                self.wave_speeds = np.append(self.wave_speeds, np.array([np.ones(self.waves[0].shape) * self.WAVE_SPEED]), axis=0)
+                self.wave_vol = np.append(self.wave_vol, np.array([self.WAVE_VOL * np.ones(self.waves[0].shape)]), axis=0)
+                self.wave_dirs = np.append(self.wave_dirs, np.array([np.ones(self.waves[0].shape)]), axis=0)
 
                 if plots:
-                    self.display_map(temp_coast_map, waves)
+                    self.display_map(temp_coast_map)
                     plt.title("Time step = "+str(t))
                     plt.show()
-            temp_coast_map, wave_speeds = self.move_sand(copy.deepcopy(temp_coast_map), waves, wave_speeds, wave_vol)
-            waves= (waves - wave_speeds).astype(int)
+            temp_coast_map = self.move_sand(copy.deepcopy(temp_coast_map))
+            self.waves = (self.waves - self.wave_dirs).astype(int)
 
-            if np.min(waves)<0:
-                waves = self.calculate_wave_pos(waves)
+            if np.min(self.waves)<0:
+                self.waves = self.calculate_wave_pos(self.waves)
                 
             if plots:
-                self.display_map(temp_coast_map, waves, openCV=False)
+                self.display_map(temp_coast_map, openCV=False)
                 plt.title("Time step = "+str(t))
                 plt.show()
 
-        sand_layer = temp_coast_map[:, :, 1]  # Extract sand layer
-        total_sand = np.sum(sand_layer)  # Sum of all sand cells
-        print(f"Total sand: {total_sand}")
+        before_map = self.get_coast(coast_map)
+        coords1 = self.get_coast_coords(before_map, limit=0)
+        before_erosion, after_erosion = 0, 0
+        for i in coords1:
+            before_erosion += np.sum(before_map[i[0],:i[1],1])
+            after_erosion += np.sum(temp_coast_map[i[0],:i[1],1])
 
-        return self.get_coast(coast_map), temp_coast_map, total_sand
+        return self.get_coast(coast_map), temp_coast_map, before_erosion, after_erosion
