@@ -87,10 +87,11 @@ class simulation:
         wave = self.DIM_MAP - wave
         wave = self.calculate_wave_pos(wave)
         return wave
-    
+        
     def place_obstacles(self):
         for i in self.obstacle_coords:
-            self.obstacle_map[i[0],i[1]] = 1
+            self.obstacle_map[int(i[0]), int(i[1])] = 1
+
 
     def get_coast(self, coast_inp):
         temp_coast = copy.deepcopy(coast_inp)
