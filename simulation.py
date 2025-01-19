@@ -8,13 +8,22 @@ from scipy.spatial.distance import cdist
 import time
 from tqdm.notebook import tqdm
 
+from config import *
+
+from utils import get_coast_noise, periodic_kernel, white_kernel
+from visualization import display_map
+
 class simulation:
     def __init__(self, wave_freq, wave_speed, wave_decay, wave_cutoff, wave_retreat_coeff, wave_height, sand_pull, ground_pull, water_decay, wave_vol, wave_amplitude, wave_spread, obstacle_coords=[], dim_map=100):
-        self.GROUND_COLOR = [56,118,29]
-        self.SAND_COLOR = [255,229, 153]
-        self.WATER_COLOR = [41,134,204]
+        global WAVE_FREQ, WAVE_SPEED, WAVE_DECAY, WAVE_CUTOFF, WAVE_RETREAT_COEFF, WAVE_HEIGHT
+        global SAND_PULL, GROUND_PULL, WATER_DECAY
+        global GROUND_COLOR, SAND_COLOR, WATER_COLOR
+        
+        self.GROUND_COLOR = GROUND_COLOR
+        self.SAND_COLOR = SAND_COLOR
+        self.WATER_COLOR = WATER_COLOR
 
-        self.FRAC_GROUND, self.FRAC_SAND = 0.3, 0.3
+        self.FRAC_GROUND, self.FRAC_SAND = FRAC_GROUND, FRAC_SAND
         
         self.WAVE_FREQ = wave_freq
         self.WAVE_SPEED = wave_speed
@@ -67,29 +76,11 @@ class simulation:
         plt.xlim(0,100)
         plt.ylim(0,100)
     
-    def white_kernel(self, x1, x2, varSigma):
-        return varSigma*np.eye(x1.shape[0])
-    
-    def periodic_kernel(self, x1, x2, varSigma, period, lengthScale):
-        if x2 is None:
-            d = cdist(x1, x1)
-        else:
-            d = cdist(x1, x2)
-        return varSigma*np.exp(-(2*np.sin((np.pi/period)*d)**2)/lengthScale**2)
-
-
-    def get_coast_noise(self, scaling_factor=3, period=1, noise_level=0.01, lengthScale=1, varSigma=1):
-        x = np.linspace(0,self.DIM_MAP, self.DIM_MAP).reshape(-1,1)
-        K = self.periodic_kernel(x,None,varSigma,period,lengthScale) + self.white_kernel(x,None,noise_level)
-        mu = np.zeros(x.shape)
-        f = scaling_factor* np.random.multivariate_normal(mu.flatten(), K, 1)
-        return f[0]
-
     def calculate_wave_pos(self, waves):
         return np.clip(waves,0,self.DIM_MAP-1).astype(np.int16)
 
     def get_wave(self, scaling_factor=3, period=1, noise_level=0.01, lengthScale=1, varSigma=1):
-        wave = self.get_coast_noise(scaling_factor, period, noise_level, lengthScale, varSigma)
+        wave = get_coast_noise(scaling_factor, period, noise_level, lengthScale, varSigma)
         min_idx = min(wave)
         if min_idx < 0:
             wave = wave - min_idx
@@ -102,42 +93,6 @@ class simulation:
             self.obstacle_map[int(i[0]), int(i[1])] = 1
 
 
-    def display_map(self, coast, stream=True, openCV=False):
-        cv.namedWindow("Coast")
-        
-        img = np.zeros((coast.shape[0], coast.shape[1],3), dtype=int)
-        coast_temp = copy.deepcopy(coast)
-        coast_temp[:,:,0] = (coast_temp[:,:,0] / np.max(coast_temp[:,:,0]))
-        coast_temp[:,:,1] = (coast_temp[:,:,1] / np.max(coast_temp[:,:,1]))
-        coast_temp[:,:,2] = (coast_temp[:,:,2] / np.max(coast_temp[:,:,2]))
-        coast_temp = coast_temp[...,np.newaxis]
-        img = np.array(self.GROUND_COLOR).reshape(1,1,-1)*coast_temp[:,:,0,:]   ## Ground Color
-        img+= np.array(self.SAND_COLOR).reshape(1,1,-1)*coast_temp[:,:,1,:]   ## Sand Color
-        img+= np.array(self.WATER_COLOR).reshape(1,1,-1)*coast_temp[:,:,2,:]   ## Water Color
-
-        for i in range(len(self.waves)):
-            for j in range(len(self.waves[i])):
-                img[j,int(self.waves[i,j])] = [0,0,255]
-                # img[i,waves_inp[:,i]] = [0,0,255]]
-        
-        for i in range(len(self.obstacle_coords)):
-            img[self.obstacle_coords[i][0],self.obstacle_coords[i][1]] = [255,0,0]
-        
-        if not openCV:
-            plt.imshow(img)
-        elif openCV:
-            img = img.astype(np.uint8)
-            img_cv = cv.cvtColor(img, cv.COLOR_RGB2BGR)
-            img_cv = cv.resize(img_cv, (1000,1000))
-            
-            cv.imshow("Coast", img_cv)
-            if stream:
-                cv.waitKey(2)
-            else:
-                cv.waitKey(0)
-                cv.destroyWindow("Coast")
-                cv.waitKey(1)
-            
     def get_coast(self, coast_inp):
         temp_coast = copy.deepcopy(coast_inp)
 
@@ -156,9 +111,6 @@ class simulation:
                 temp_coast[i, :int(self.DIM_MAP*(self.FRAC_GROUND))+int(self.rand_terrain[i]), 0] = 100
                 temp_coast[i, :int(self.DIM_MAP*(self.FRAC_GROUND))+int(self.rand_terrain[i]), 1] = 0
         return temp_coast
-
-    def get_wave_energy(self, wave_height):
-        return (1.225 * 9.8 * wave_height**2 * self.WAVE_AMPLITUDE) / 8
 
     def move_sand(self, coast_inp):     
         global WAVE_DECAY, SAND_PULL, GROUND_PULL, WAVE_CUTOFF, WAVE_RETREAT_COEFF, WAVE_SPREAD, WATER_DECAY, WAVE_SPEED, WAVE_VOL
@@ -246,9 +198,9 @@ class simulation:
         coast_map[:,:int(self.DIM_MAP*self.FRAC_GROUND),0] = 100  ## Assign sand portion of the map
         coast_map[:,int(self.DIM_MAP*self.FRAC_GROUND):int(self.DIM_MAP*(self.FRAC_GROUND+self.FRAC_SAND)),1] = 100  ## Assign sand portion of the map
         coast_map[:,int(self.DIM_MAP*(self.FRAC_GROUND+self.FRAC_SAND)):, 2] = 100  ## Assign water portion of the map
-        self.rand_coast = self.get_coast_noise(scaling_factor=self.DIM_MAP / 20, period=0.5, noise_level=1 / self.DIM_MAP)
-        self.rand_terrain = self.get_coast_noise(scaling_factor=self.DIM_MAP/20, period=0.5, noise_level=1 / self.DIM_MAP)
-        temp_coast_map = self.get_coast(coast_map)
+        self.rand_coast = get_coast_noise(scaling_factor=self.DIM_MAP / 20, period=0.5, noise_level=1 / self.DIM_MAP)
+        self.rand_terrain = get_coast_noise(scaling_factor=self.DIM_MAP/20, period=0.5, noise_level=1 / self.DIM_MAP)
+        temp_coast_map = get_coast(coast_map)
         self.waves = np.array([self.get_wave(scaling_factor=3, period=self.WAVE_AMPLITUDE, noise_level=1/self.DIM_MAP).astype(np.int16)])
         self.wave_speeds = np.array([np.ones(self.waves[0].shape) * self.WAVE_SPEED])
         self.wave_dirs = np.array([np.ones(self.waves[0].shape)])
@@ -264,7 +216,7 @@ class simulation:
                 self.wave_dirs = np.append(self.wave_dirs, np.array([np.ones(self.waves[0].shape)]), axis=0)
 
                 if plots:
-                    self.display_map(temp_coast_map)
+                    display_map(temp_coast_map)
                     plt.title("Time step = "+str(t))
                     plt.show()
             temp_coast_map = self.move_sand(copy.deepcopy(temp_coast_map))
@@ -274,7 +226,7 @@ class simulation:
                 self.waves = self.calculate_wave_pos(self.waves)
                 
             if plots:
-                self.display_map(temp_coast_map, openCV=False)
+                display_map(temp_coast_map, openCV=False)
                 plt.title("Time step = "+str(t))
                 plt.show()
 
