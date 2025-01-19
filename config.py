@@ -29,7 +29,6 @@ GROUND_COLOR.reverse()
 SAND_COLOR.reverse()
 WATER_COLOR.reverse()
 
-# Parameter ranges for optimization - to be changed for barrier only params
 PARAM_RANGES = {
-    "obstacle_coords": [(0, DIM_MAP), (0, DIM_MAP)], 
+    "obstacle_coords": [(0, DIM_MAP), (0, DIM_MAP)],  # Obstacle positions
 }
