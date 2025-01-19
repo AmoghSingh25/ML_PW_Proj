@@ -11,7 +11,7 @@ WAVE_AMPLITUDE = 0.282
 
 WAVE_DECAY = 0.038
 WAVE_CUTOFF = 0.1297
-WAVE_RETREAT_COEFF = 1.8
+WAVE_RETREAT_COEFF = 0.8
 
 WAVE_VOL = 10.1866
 WAVE_SPREAD = 12
@@ -29,7 +29,6 @@ GROUND_COLOR.reverse()
 SAND_COLOR.reverse()
 WATER_COLOR.reverse()
 
-# Parameter ranges for optimization - to be changed for barrier only params
 PARAM_RANGES = {
-    "obstacle_coords": [(0, DIM_MAP), (0, DIM_MAP)], 
+    "obstacle_coords": [(0, DIM_MAP), (0, DIM_MAP)],  # Obstacle positions
 }
