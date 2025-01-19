@@ -4,25 +4,38 @@ import cv2 as cv
 import matplotlib.pyplot as plt
 from config import GROUND_COLOR, SAND_COLOR, WATER_COLOR, DIM_MAP
 
-def display_map(coast, waves_inp=[], waves_pos=[], stream=True, openCV=False):
-    cv.namedWindow("Coast")
+def display_map(coast, waves_inp=[], obstacles=[], stream=True, openCV=False):
+    global GROUND_COLOR, SAND_COLOR, WATER_COLOR
+
+    water_color = copy.deepcopy(WATER_COLOR)
+    ground_color = copy.deepcopy(GROUND_COLOR)
+    sand_color = copy.deepcopy(SAND_COLOR)
+
+    water_color.reverse()
+    ground_color.reverse()
+    sand_color.reverse()
     
-    img = np.zeros((coast.shape[0], coast.shape[1], 3), dtype=int)
+    
+    img = np.zeros((coast.shape[0], coast.shape[1],3), dtype=float)
     coast_temp = copy.deepcopy(coast)
-    coast_temp[:,:,0] = (coast_temp[:,:,0] / np.max(coast_temp[:,:,0])) * 255
-    coast_temp[:,:,1] = (coast_temp[:,:,1] / np.max(coast_temp[:,:,1])) * 255
-    coast_temp[:,:,2] = (coast_temp[:,:,2] / np.max(coast_temp[:,:,2])) * 255
-    coast_temp = coast_temp[...,np.newaxis]
-    img = np.array(GROUND_COLOR).reshape(1,1,-1)*coast_temp[:,:,0,:]   # Ground Color
-    img+= np.array(SAND_COLOR).reshape(1,1,-1)*coast_temp[:,:,1,:]     # Sand Color
-    img+= np.array(WATER_COLOR).reshape(1,1,-1)*coast_temp[:,:,2,:]    # Water Color
+    total = coast_temp.sum(axis=-1, keepdims=True) + 1e-8
+    coast_temp = coast_temp / total
     
+    
+    img += np.array(ground_color).reshape(1,1,-1)*coast_temp[:,:,0:1]   ## Ground Color
+    img+= np.array(sand_color).reshape(1,1,-1)*coast_temp[:,:,1:2]   ## Sand Color
+    img+= np.array(water_color).reshape(1,1,-1)*coast_temp[:,:,2:3]   ## Water Color
+
+    
+    for i in range(len(obstacles)):
+        img[obstacles[i][0], obstacles[i][1]] = [255,255,0]
+
     if len(waves_inp) > 0:
         for i in range(DIM_MAP):
             img[i,waves_inp[:,i]] = [0,0,255]
 
     if not openCV:
-        plt.imshow(img)
+        plt.imshow(img.astype(int))
         plt.show()
 
     if openCV:

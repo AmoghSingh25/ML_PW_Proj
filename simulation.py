@@ -80,7 +80,7 @@ class simulation:
         return np.clip(waves,0,self.DIM_MAP-1).astype(np.int16)
 
     def get_wave(self, scaling_factor=3, period=1, noise_level=0.01, lengthScale=1, varSigma=1):
-        wave = get_coast_noise(scaling_factor, period, noise_level, lengthScale, varSigma)
+        wave = get_coast_noise(self.DIM_MAP,scaling_factor, period, noise_level)
         min_idx = min(wave)
         if min_idx < 0:
             wave = wave - min_idx
@@ -198,9 +198,9 @@ class simulation:
         coast_map[:,:int(self.DIM_MAP*self.FRAC_GROUND),0] = 100  ## Assign sand portion of the map
         coast_map[:,int(self.DIM_MAP*self.FRAC_GROUND):int(self.DIM_MAP*(self.FRAC_GROUND+self.FRAC_SAND)),1] = 100  ## Assign sand portion of the map
         coast_map[:,int(self.DIM_MAP*(self.FRAC_GROUND+self.FRAC_SAND)):, 2] = 100  ## Assign water portion of the map
-        self.rand_coast = get_coast_noise(scaling_factor=self.DIM_MAP / 20, period=0.5, noise_level=1 / self.DIM_MAP)
-        self.rand_terrain = get_coast_noise(scaling_factor=self.DIM_MAP/20, period=0.5, noise_level=1 / self.DIM_MAP)
-        temp_coast_map = get_coast(coast_map)
+        self.rand_coast = get_coast_noise(self.DIM_MAP, scaling_factor=self.DIM_MAP / 20, period=0.5, noise_level=1 / self.DIM_MAP)
+        self.rand_terrain = get_coast_noise(self.DIM_MAP, scaling_factor=self.DIM_MAP/20, period=0.5, noise_level=1 / self.DIM_MAP)
+        temp_coast_map = self.get_coast(coast_map)
         self.waves = np.array([self.get_wave(scaling_factor=3, period=self.WAVE_AMPLITUDE, noise_level=1/self.DIM_MAP).astype(np.int16)])
         self.wave_speeds = np.array([np.ones(self.waves[0].shape) * self.WAVE_SPEED])
         self.wave_dirs = np.array([np.ones(self.waves[0].shape)])
@@ -216,7 +216,7 @@ class simulation:
                 self.wave_dirs = np.append(self.wave_dirs, np.array([np.ones(self.waves[0].shape)]), axis=0)
 
                 if plots:
-                    display_map(temp_coast_map)
+                    display_map(temp_coast_map, self.waves, self.obstacle_coords)
                     plt.title("Time step = "+str(t))
                     plt.show()
             temp_coast_map = self.move_sand(copy.deepcopy(temp_coast_map))
@@ -226,7 +226,7 @@ class simulation:
                 self.waves = self.calculate_wave_pos(self.waves)
                 
             if plots:
-                display_map(temp_coast_map, openCV=False)
+                display_map(temp_coast_map, self.waves,self.obstacle_coords, openCV=False)
                 plt.title("Time step = "+str(t))
                 plt.show()
 
