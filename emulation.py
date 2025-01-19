@@ -27,7 +27,7 @@ class CompositeKernel(GPy.kern.Kern):
         """
         return (white_kernel(X, X2, self.varSigma_white) +
                 periodic_kernel(X, X2, self.varSigma_periodic, self.period, self.lengthScale_periodic) +
-                rbf_kernel(X, X2, self.varSigma_rbf, self.lengthScale_rbf))
+                rbf_kernel(X, X2, self.varSigma_rbf, self.lengthScale_rbf)) 
 
     def Kdiag(self, X):
         """
