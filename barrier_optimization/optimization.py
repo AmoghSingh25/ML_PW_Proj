@@ -66,8 +66,15 @@ class OptimizationManager:
         """
         Perform Bayesian Optimization using the emulator.
         """
+        # Normalise input data
+        X_mean, X_std = X.mean(axis=0), X.std(axis=0)
+        X_normalized = (X - X_mean) / X_std
+
+        Y_mean, Y_std = Y.mean(axis=0), Y.std(axis=0)
+        Y_normalized = (Y - Y_mean) / Y_std
+
         # Train emulator
-        self.emulator.train_emulator(X, Y)
+        self.emulator.train_emulator(X_normalized, Y_normalized)
 
         # Wrap emulator for Bayesian Optimization
         emukit_model = GPyModelWrapper(self.emulator.gp)
