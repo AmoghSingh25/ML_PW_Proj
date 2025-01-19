@@ -14,7 +14,7 @@ from utils import get_coast_noise, periodic_kernel, white_kernel
 from visualization import display_map
 
 class simulation:
-    def __init__(self, wave_freq, wave_speed, wave_decay, wave_cutoff, wave_retreat_coeff, wave_height, sand_pull, ground_pull, water_decay, wave_vol, wave_amplitude, wave_spread, obstacle_coords=[], dim_map=100):
+    def __init__(self, wave_freq, wave_speed, wave_decay, wave_cutoff, wave_retreat_coeff, wave_height, sand_pull, ground_pull, water_decay, wave_vol, wave_amplitude, wave_spread, obstacle_coords=[], dim_map=100, erosion_speedup=1):
         global WAVE_FREQ, WAVE_SPEED, WAVE_DECAY, WAVE_CUTOFF, WAVE_RETREAT_COEFF, WAVE_HEIGHT
         global SAND_PULL, GROUND_PULL, WATER_DECAY
         global GROUND_COLOR, SAND_COLOR, WATER_COLOR
@@ -34,6 +34,7 @@ class simulation:
         self.WAVE_VOL = wave_vol
         self.WAVE_AMPLITUDE = wave_amplitude
         self.WAVE_SPREAD = wave_spread
+        self.EROSION_SPEEDUP = 1
 
         self.waves = []
         self.wave_speeds = []
@@ -80,7 +81,7 @@ class simulation:
         return np.clip(waves,0,self.DIM_MAP-1).astype(np.int16)
 
     def get_wave(self, scaling_factor=3, period=1, noise_level=0.01, lengthScale=1, varSigma=1):
-        wave = get_coast_noise(self.DIM_MAP,scaling_factor, period, noise_level)
+        wave = get_coast_noise(scaling_factor, period, noise_level)
         min_idx = min(wave)
         if min_idx < 0:
             wave = wave - min_idx
@@ -139,7 +140,7 @@ class simulation:
                         self.wave_speeds[wave_idx][i] = self.WAVE_VOL * self.WAVE_RETREAT_COEFF
                         continue
                     
-                    energy = self.wave_speeds[wave_idx][i] * self.wave_vol[wave_idx][i]
+                    energy = self.wave_speeds[wave_idx][i] * self.wave_vol[wave_idx][i] * self.EROSION_SPEEDUP
                     
                     
                     new_curr_pix[0] = max(curr_pix[0] - self.GROUND_PULL * curr_pix[0] * energy, 0)
@@ -176,7 +177,7 @@ class simulation:
                         
 
                     right_pix = coast_inp[vert_idx, hor_idx+1]
-                    energy = self.wave_speeds[wave_idx][i] * self.WAVE_RETREAT_COEFF
+                    energy = self.wave_speeds[wave_idx][i] * self.WAVE_RETREAT_COEFF * self.EROSION_SPEEDUP
                     
                     new_curr_pix = copy.deepcopy(curr_pix)
                     new_curr_pix[0] = max(curr_pix[0] - self.GROUND_PULL * curr_pix[0] * energy, 0)
@@ -198,8 +199,8 @@ class simulation:
         coast_map[:,:int(self.DIM_MAP*self.FRAC_GROUND),0] = 100  ## Assign sand portion of the map
         coast_map[:,int(self.DIM_MAP*self.FRAC_GROUND):int(self.DIM_MAP*(self.FRAC_GROUND+self.FRAC_SAND)),1] = 100  ## Assign sand portion of the map
         coast_map[:,int(self.DIM_MAP*(self.FRAC_GROUND+self.FRAC_SAND)):, 2] = 100  ## Assign water portion of the map
-        self.rand_coast = get_coast_noise(self.DIM_MAP, scaling_factor=self.DIM_MAP / 20, period=0.5, noise_level=1 / self.DIM_MAP)
-        self.rand_terrain = get_coast_noise(self.DIM_MAP, scaling_factor=self.DIM_MAP/20, period=0.5, noise_level=1 / self.DIM_MAP)
+        self.rand_coast = get_coast_noise(scaling_factor=self.DIM_MAP / 20, period=0.5, noise_level=1 / self.DIM_MAP)
+        self.rand_terrain = get_coast_noise(scaling_factor=self.DIM_MAP/20, period=0.5, noise_level=1 / self.DIM_MAP)
         temp_coast_map = self.get_coast(coast_map)
         self.waves = np.array([self.get_wave(scaling_factor=3, period=self.WAVE_AMPLITUDE, noise_level=1/self.DIM_MAP).astype(np.int16)])
         self.wave_speeds = np.array([np.ones(self.waves[0].shape) * self.WAVE_SPEED])
