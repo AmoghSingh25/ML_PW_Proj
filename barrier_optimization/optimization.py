@@ -68,9 +68,11 @@ class OptimizationManager:
         """
         # Normalise input data
         X_mean, X_std = X.mean(axis=0), X.std(axis=0)
+        X_std[X_std == 0] = 1 # no division by zero
         X_normalized = (X - X_mean) / X_std
 
         Y_mean, Y_std = Y.mean(axis=0), Y.std(axis=0)
+        Y_std[Y_std == 0] = 1 # no division by zero
         Y_normalized = (Y - Y_mean) / Y_std
 
         # Train emulator
