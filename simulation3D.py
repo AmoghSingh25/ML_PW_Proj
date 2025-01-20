@@ -75,6 +75,7 @@ class Simulation3D:
                 y, x = int(coord[0]), int(coord[1])
                 for offset in range(-5, 6):
                     new_y = y + offset
+                    print(new_y)
                     if 0 <= new_y < self.obstacle_map.shape[0]:
                         self.obstacle_map[new_y, x, :self.obstacle_height] = [1,1,1]
 
@@ -194,11 +195,10 @@ class Simulation3D:
                     else:
                         voxel_array[i,j,k] = True
                         coast_map_3d_downsamp[i,j,k] = self.coast_map_3D[i,j,k] // np.max(self.coast_map_3D[i,j,k])
-
-        for i in range(len(self.obstacle_coords)):
-            coords = self.obstacle_coords[i]
-            voxel_array[coords[0], coords[1], :self.obstacle_height] = True
-            coast_map_3d_downsamp[coords[0], coords[1], :self.obstacle_height] = [1,1,0]
+        x,y = np.where(self.obstacle_map[:,:,0] > 0)[0],np.where(self.obstacle_map[:,:,0] > 0)[1]
+        for i in zip(x,y):
+            voxel_array[x,y, :self.obstacle_height] = True
+            coast_map_3d_downsamp[x,y, :self.obstacle_height] = [1,1,0]
         
         
         fig = plt.figure(figsize=(10, 8))
