@@ -90,8 +90,14 @@ class simulation:
         return wave
         
     def place_obstacles(self):
-        for i in self.obstacle_coords:
-            self.obstacle_map[int(i[0]), int(i[1])] = 1
+        for coord in self.obstacle_coords:
+            y, x = int(coord[0]), int(coord[1])
+            # Create a vertical line of obstacles extending 5 points up and down
+            for offset in range(-5, 6):
+                new_y = y + offset
+                # Ensure new_y is within valid bounds of the obstacle_map
+                if 0 <= new_y < self.obstacle_map.shape[0]:
+                    self.obstacle_map[new_y, x] = 1
 
 
     def get_coast(self, coast_inp):
