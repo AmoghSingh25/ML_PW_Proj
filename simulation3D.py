@@ -14,7 +14,7 @@ from utils import white_kernel, periodic_kernel
 
 
 class Simulation3D:
-    def __init__(self, wave_freq, wave_speed, wave_decay, wave_cutoff, wave_retreat_coeff, wave_height, sand_pull, ground_pull, water_decay, wave_vol, wave_amplitude, wave_spread, obstacle_coords=[], dim_map=100):
+    def __init__(self, wave_freq, wave_speed, wave_decay, wave_cutoff, wave_retreat_coeff, wave_height, sand_pull, ground_pull, water_decay, wave_vol, wave_amplitude, wave_spread, obstacle_coords=[], dim_map=100, erosion_speedup=1):
         global WAVE_FREQ, WAVE_SPEED, WAVE_DECAY, WAVE_CUTOFF, WAVE_RETREAT_COEFF, WAVE_HEIGHT
         global SAND_PULL, GROUND_PULL, WATER_DECAY
         global GROUND_COLOR, SAND_COLOR, WATER_COLOR
@@ -38,6 +38,8 @@ class Simulation3D:
         self.WAVE_VOL = wave_vol
         self.WAVE_AMPLITUDE = wave_amplitude
         self.WAVE_SPREAD = wave_spread
+
+        self.EROSION_SPEEDUP = erosion_speedup
 
         self.SAND_LIM = 10
         self.HORIZON_HEIGHT = self.DIM_MAP // 2
@@ -69,9 +71,12 @@ class Simulation3D:
 
 
     def place_obstacles(self):
-        for i in range(len(self.obstacle_coords)):
-            coords = self.obstacle_coords[i]
-            self.obstacle_map[coords[0], coords[1], :self.obstacle_height] = [1,1,1]
+        for coord in self.obstacle_coords:
+                y, x = int(coord[0]), int(coord[1])
+                for offset in range(-5, 6):
+                    new_y = y + offset
+                    if 0 <= new_y < self.obstacle_map.shape[0]:
+                        self.obstacle_map[new_y, x, :self.obstacle_height] = [1,1,1]
 
     def get_coast_noise(self, scaling_factor=3, period=1, noise_level=0.01, lengthScale=1, varSigma=1):
         x = np.linspace(0,self.DIM_MAP, self.DIM_MAP).reshape(-1,1)
@@ -248,23 +253,25 @@ class Simulation3D:
                             # new_force_map[idx[0],idx[1],idx[2]] = np.array([])
                             if self.coast_map_3D[idx[0],idx[1],idx[2],1] > 0 or self.coast_map_3D[idx[0],idx[1],idx[2],0] > 0:
                                 if self.force_maps[idx[0], idx[1], idx[2], 2] > 0:
-                                    energy = self.WAVE_RETREAT_COEFF * self.force_maps[idx[0],idx[1],idx[2],0] * self.ENERGY_SCALE
+                                    energy = self.WAVE_RETREAT_COEFF * self.force_maps[idx[0],idx[1],idx[2],0] * self.EROSION_SPEEDUP
                                     
                                     self.coast_map_3D[i,j,k,0] += energy * (self.GROUND_PULL * self.coast_map_3D[idx[0], idx[1], idx[2], 0])
                                     self.coast_map_3D[i,j,k,1] += energy * (self.SAND_PULL * self.coast_map_3D[idx[0], idx[1], idx[2], 1])
                                     
                                     self.coast_map_3D[idx[0],idx[1],idx[2],0] -= energy * (self.GROUND_PULL * self.coast_map_3D[idx[0], idx[1], idx[2], 0])
-                                    self.coast_map_3D[idx[0],idx[1],idx[2],0] -= energy * (self.GROUND_PULL * self.coast_map_3D[idx[0], idx[1], idx[2], 0])
+                                    self.coast_map_3D[idx[0],idx[1],idx[2],1] -= energy * (self.SAND_PULL * self.coast_map_3D[idx[0], idx[1], idx[2], 1])
+                                    
                                     new_force_map[i,j,k,:] += self.WAVE_DECAY * self.force_maps[idx[0], idx[1], idx[2]]
                                     
                                 else:
-                                    energy = self.force_maps[idx[0],idx[1],idx[2],0] * self.ENERGY_SCALE
+                                    energy = self.force_maps[idx[0],idx[1],idx[2],0] * self.EROSION_SPEEDUP
                                     
                                     self.coast_map_3D[i,j,k,0] += energy * (self.GROUND_PULL * self.coast_map_3D[idx[0], idx[1], idx[2], 0])
                                     self.coast_map_3D[i,j,k,1] += energy * (self.SAND_PULL * self.coast_map_3D[idx[0], idx[1], idx[2], 1])
 
                                     self.coast_map_3D[idx[0],idx[1],idx[2],0] -= energy * (self.GROUND_PULL * self.coast_map_3D[idx[0], idx[1], idx[2], 0])
-                                    self.coast_map_3D[idx[0],idx[1],idx[2],0] -= energy * (self.GROUND_PULL * self.coast_map_3D[idx[0], idx[1], idx[2], 0])
+                                    self.coast_map_3D[idx[0],idx[1],idx[2],1] -= energy * (self.SAND_PULL * self.coast_map_3D[idx[0], idx[1], idx[2], 1])
+                                    
                                     new_force_map[i,j,k,:] += self.WAVE_DECAY * self.force_maps[idx[0], idx[1], idx[2]]
                                     
                             else:
@@ -330,7 +337,7 @@ class Simulation3D:
         plt.show()
         plt.show()
         
-            
+    
     def get_wave_energy(self, wave_height):
         return (1.225 * 9.8 * wave_height**2 * self.WAVE_AMPLITUDE) / 8
 
