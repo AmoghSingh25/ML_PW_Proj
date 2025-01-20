@@ -58,7 +58,7 @@ class OptimizationManager:
             # Run simulation and compute objective
             _, _, before_erosion, after_erosion = sim.run_sim(num_timesteps=100)
             erosion_diff = before_erosion - after_erosion
-            results.append([-erosion_diff])
+            results.append([erosion_diff])
 
         return np.array(results)
 
