@@ -129,9 +129,9 @@ class simulation:
                 hor_idx = self.waves[wave_idx][i]
                 curr_pix = copy.deepcopy(coast_inp[vert_idx, hor_idx])
                 
-                if self.wave_speeds[wave_idx][i] < self.WAVE_CUTOFF:
+                if self.wave_speeds[wave_idx][i] < self.WAVE_CUTOFF and self.wave_dirs[wave_idx][i] == 1:
                     self.wave_dirs[wave_idx][i] = -1
-                    self.wave_speeds[wave_idx][i] = self.WAVE_VOL * self.WAVE_RETREAT_COEFF
+                    self.wave_speeds[wave_idx][i] = self.WAVE_VOL * self.WAVE_RETREAT_COEFF * self.EROSION_SPEEDUP
                     continue
 
                 if self.wave_speeds[wave_idx][i] > self.WAVE_CUTOFF and self.wave_dirs[wave_idx][i] == 1:
@@ -143,7 +143,7 @@ class simulation:
                     
                     if self.obstacle_map[vert_idx, hor_idx] == 1:
                         self.wave_dirs[wave_idx][i] = 0
-                        self.wave_speeds[wave_idx][i] = self.WAVE_VOL * self.WAVE_RETREAT_COEFF
+                        self.wave_speeds[wave_idx][i] = 0
                         continue
                     
                     energy = self.wave_speeds[wave_idx][i] * self.wave_vol[wave_idx][i] * self.EROSION_SPEEDUP
@@ -215,7 +215,7 @@ class simulation:
 
         
         for t in tqdm(range(1,num_timesteps)):
-            if t%self.WAVE_FREQ == 0 and (num_timesteps - t) > 10 :
+            if t%(round(self.WAVE_FREQ,1)*100)==0 and (num_timesteps - t) > 10 :
                 new_wave = self.get_wave(scaling_factor=10, period=self.WAVE_AMPLITUDE, noise_level=1/self.DIM_MAP).astype(np.int16).reshape(1,-1)
                 self.waves = np.append(self.waves, new_wave, axis=0)
                 self.wave_speeds = np.append(self.wave_speeds, np.array([np.ones(self.waves[0].shape) * self.WAVE_SPEED]), axis=0)
