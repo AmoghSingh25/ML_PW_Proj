@@ -73,7 +73,6 @@ class CompositeKernel(GPy.kern.Kern):
         """
         self.update_gradients_full(np.diag(dL_dKdiag), X)
 
-# Emulation class
 class Emulator:
     def __init__(self):
         """
@@ -87,7 +86,15 @@ class Emulator:
         """
         # Instantiate the composite kernel with default parameters
         kernel = CompositeKernel(input_dim=X.shape[1])
-        self.gp = GPy.models.GPRegression(X, Y, kernel)
+        
+        # Initialize the Gaussian Process model first
+        self.gp = GPy.models.GPRegression(X, Y, kernel) 
+        
+        # Now compute the kernel matrix (after gp is initialized)
+        K = self.gp.kern.K(X)  # Compute the kernel matrix
+        jitter = 1e-4 * np.eye(K.shape[0])  # Create a small diagonal matrix
+        K += jitter  # Add jitter to the kernel matrix
+
         self.gp.optimize()  # Optimize GP hyperparameters
         return self.gp
 
