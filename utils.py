@@ -29,8 +29,19 @@ def rbf_kernel(x1, x2, varSigma, lengthScale):
     
 #     f = scaling_factor * np.random.multivariate_normal(mu.flatten(), K, 1)[0]
 #     return f
+
+def get_coast_noise_reproducible(scaling_factor=3, period=1, noise_level=0.01):
+    rng = np.random.default_rng(19028)
+    x = np.linspace(0, DIM_MAP, DIM_MAP).reshape(-1,1)
+    K = periodic_kernel(x, x, 1, period, 1) + white_kernel(x, None, noise_level)
+    mu = np.zeros(x.shape)
     
-def get_coast_noise(scaling_factor=3, period=1, noise_level=0.01):
+    f = scaling_factor * rng.multivariate_normal(mu.flatten(), K, 1)[0]
+    return f
+    
+def get_coast_noise(scaling_factor=3, period=1, noise_level=0.01,gen_coast=False):
+    if gen_coast:
+        return get_coast_noise_reproducible(scaling_factor, period, noise_level)
     x = np.linspace(0, DIM_MAP, DIM_MAP).reshape(-1,1)
     K = periodic_kernel(x, x, 1, period, 1) + white_kernel(x, None, noise_level)
     mu = np.zeros(x.shape)
